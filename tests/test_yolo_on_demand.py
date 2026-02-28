@@ -48,11 +48,6 @@ class FakeResult:
         ]
 
 
-class NoopDetector:
-    def detect(self, frame):
-        return []
-
-
 def test_yolo_adapter_and_on_demand_runtime_flow() -> None:
     result = FakeResult()
 
@@ -60,7 +55,6 @@ def test_yolo_adapter_and_on_demand_runtime_flow() -> None:
     assert [d.label for d in detections] == ["pedestrian", "car", "ambulance"]
 
     engine = PerceptionEngine(
-        detector=NoopDetector(),
         wait_zones=[Zone("left_wait", 0, 0, 100, 100)],
         traffic_zones=[Zone("lane_1", 100, 100, 300, 300)],
         crosswalk_zone=Zone("xwalk", 0, 0, 50, 50),

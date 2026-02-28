@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from .controller import SignalControllerAdapter
 from .decision import DecisionEngine, DecisionInput, DecisionOutcome
 from .evidence import EvidenceService
-from .models import EventRecord
+from .models import EventRecord, PedSignal
 from .supervisor import SafetySupervisor
 
 
@@ -18,6 +18,9 @@ class TickInput:
     crosswalk_occupied: bool
     emergency_vehicle_detected: bool = False
     unauthorized_step_in: bool = False
+    pedestrian_density: float = 0.0
+    traffic_density: float = 0.0
+    vehicles_in_crosswalk: int = 0
     violation_plate: str | None = None
 
 
@@ -34,6 +37,17 @@ class SafeStepOrchestrator:
         self.evidence = evidence or EvidenceService()
         self.supervisor = supervisor or SafetySupervisor()
 
+    def _log_violation(self, plate: str | None, source: str) -> None:
+        encrypted = self.evidence.encrypt_identifier(plate or "UNKNOWN")
+        self.evidence.log_event(
+            EventRecord(
+                event_type="crosswalk_violation",
+                confidence=0.95 if plate else 0.7,
+                encrypted_identifier=encrypted,
+                details={"source": source},
+            )
+        )
+
     def process_tick(self, signal: TickInput) -> DecisionOutcome:
         if self.supervisor.should_enter_failsafe():
             self.controller.enter_failsafe()
@@ -48,6 +62,8 @@ class SafeStepOrchestrator:
                 crosswalk_occupied=signal.crosswalk_occupied,
                 emergency_vehicle_detected=signal.emergency_vehicle_detected,
                 unauthorized_step_in=signal.unauthorized_step_in,
+                pedestrian_density=signal.pedestrian_density,
+                traffic_density=signal.traffic_density,
             )
         )
 
@@ -59,14 +75,14 @@ class SafeStepOrchestrator:
             self.controller.suspend_ped_service()
 
         if signal.violation_plate:
-            encrypted = self.evidence.encrypt_identifier(signal.violation_plate)
-            self.evidence.log_event(
-                EventRecord(
-                    event_type="crosswalk_violation",
-                    confidence=0.95,
-                    encrypted_identifier=encrypted,
-                    details={"source": "orchestrator"},
-                )
-            )
+            self._log_violation(signal.violation_plate, source="plate_input")
+
+        if (
+            signal.vehicles_in_crosswalk > 0
+            and self.controller.state.ped_signal == PedSignal.WALK
+        ):
+            self._log_violation(signal.violation_plate, source="auto_crosswalk_intrusion")
+            self.controller.force_all_red()
+            return DecisionOutcome.FORCE_ALL_RED
 
         return decision

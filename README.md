@@ -6,11 +6,11 @@ SafeStep is a Python-first orchestration core for camera-driven pedestrian cross
 
 - **Core language**: Python
 - **YOLO integration**: Ultralytics adapter + YOLO object converter (`adapters.py`)
-- **Perception**: zone-based pedestrian and traffic analysis with density metrics (`perception.py`)
+- **Perception**: zone-based pedestrian and traffic analysis with density metrics and approach-zone support (`perception.py`)
 - **Tracking**: pluggable tracker interface with lightweight IoU tracker scaffold (`tracking.py`) ready to swap for ByteTrack/DeepSORT
 - **Signal logic**: state-machine style orchestration (`orchestrator.py`, `controller.py`)
+- **Safety logic**: unauthorized step-in all-red, emergency-vehicle all-red, automatic crosswalk-intrusion violation logging
 - **Accident heuristic**: overlap + sudden-stop detection (`accident.py`)
-- **Emergency handling**: emergency vehicle class integration in perception + all-red decision path
 - **Encryption**: AES-GCM plate encryption via `cryptography` when available (`security.py`, `evidence.py`)
 - **Fail-safe**: runtime fallback to timer/normal controller mode if frame processing fails (`runtime.py`)
 
@@ -31,8 +31,8 @@ from safestep.perception import PerceptionEngine, Zone
 from safestep.runtime import SafeStepRuntime
 
 engine = PerceptionEngine(
-    detector=...,  # optional when using process_yolo_result/process_detections only
     wait_zones=[Zone("left", 0, 0, 200, 200), Zone("right", 300, 0, 500, 200)],
+    approach_zones=[Zone("left_near", 0, 200, 200, 300)],
     traffic_zones=[Zone("lane", 0, 200, 500, 500)],
     crosswalk_zone=Zone("crosswalk", 200, 200, 300, 300),
 )

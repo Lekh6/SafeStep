@@ -23,7 +23,17 @@ class SafeStepRuntime:
         self.perception = perception
         self.orchestrator = orchestrator
 
-    def _to_tick_input(self, ped_avg_wait_s: float, waiting: int, vehicles: int, occupied: bool, emergency: bool) -> TickInput:
+    def _to_tick_input(
+        self,
+        ped_avg_wait_s: float,
+        waiting: int,
+        vehicles: int,
+        occupied: bool,
+        emergency: bool,
+        pedestrian_density: float,
+        traffic_density: float,
+        vehicles_in_crosswalk: int,
+    ) -> TickInput:
         return TickInput(
             ped_wait_count=waiting,
             ped_avg_wait_s=ped_avg_wait_s,
@@ -31,6 +41,9 @@ class SafeStepRuntime:
             traffic_queue_length=vehicles,
             crosswalk_occupied=occupied,
             emergency_vehicle_detected=emergency,
+            pedestrian_density=pedestrian_density,
+            traffic_density=traffic_density,
+            vehicles_in_crosswalk=vehicles_in_crosswalk,
         )
 
     def process_frame(self, frame: object, ped_avg_wait_s: float = 0.0) -> RuntimeOutput:
@@ -50,6 +63,9 @@ class SafeStepRuntime:
                 vehicles=perception.vehicles_in_approach,
                 occupied=perception.crosswalk_occupied,
                 emergency=perception.emergency_vehicle_detected,
+                pedestrian_density=perception.pedestrian_density,
+                traffic_density=perception.traffic_density,
+                vehicles_in_crosswalk=perception.vehicles_in_crosswalk,
             )
         )
         return RuntimeOutput(outcome=outcome, fallback_timer_mode=False)
@@ -67,6 +83,9 @@ class SafeStepRuntime:
                 vehicles=perception.vehicles_in_approach,
                 occupied=perception.crosswalk_occupied,
                 emergency=perception.emergency_vehicle_detected,
+                pedestrian_density=perception.pedestrian_density,
+                traffic_density=perception.traffic_density,
+                vehicles_in_crosswalk=perception.vehicles_in_crosswalk,
             )
         )
         return RuntimeOutput(outcome=outcome, fallback_timer_mode=False)

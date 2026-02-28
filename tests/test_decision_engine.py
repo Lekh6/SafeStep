@@ -25,6 +25,7 @@ def test_high_traffic_suspends_crossing() -> None:
             traffic_flow_rate=90,
             traffic_queue_length=5,
             crosswalk_occupied=False,
+            traffic_density=0.03,
         )
     )
     assert outcome == DecisionOutcome.SUSPEND_CROSSING
@@ -39,6 +40,7 @@ def test_pedestrian_pressure_requests_crossing() -> None:
             traffic_flow_rate=15,
             traffic_queue_length=1,
             crosswalk_occupied=False,
+            pedestrian_density=0.02,
         )
     )
     assert outcome == DecisionOutcome.REQUEST_PED_PHASE

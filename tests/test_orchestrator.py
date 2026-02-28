@@ -28,6 +28,27 @@ def test_orchestrator_logs_violation_with_encrypted_plate() -> None:
     assert orchestrator.evidence.decrypt_identifier(encrypted) == "ABC123"
 
 
+def test_orchestrator_auto_detects_crosswalk_intrusion_violation() -> None:
+    orchestrator = SafeStepOrchestrator()
+    orchestrator.controller.request_ped_phase()
+
+    outcome = orchestrator.process_tick(
+        TickInput(
+            ped_wait_count=1,
+            ped_avg_wait_s=5,
+            traffic_flow_rate=10,
+            traffic_queue_length=1,
+            crosswalk_occupied=True,
+            vehicles_in_crosswalk=1,
+        )
+    )
+
+    assert outcome == DecisionOutcome.FORCE_ALL_RED
+    assert orchestrator.controller.state.vehicle_phase == "red"
+    assert len(orchestrator.evidence.events) == 1
+    assert orchestrator.evidence.events[0].details["source"] == "auto_crosswalk_intrusion"
+
+
 def test_orchestrator_enters_failsafe_after_persistent_errors() -> None:
     orchestrator = SafeStepOrchestrator()
     orchestrator.supervisor.report_error()
