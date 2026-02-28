@@ -3,7 +3,6 @@
 from .decision import DecisionEngine, DecisionInput, DecisionOutcome
 from .models import CrossingState, EventRecord, PedMetrics, TrafficMetrics
 from .orchestrator import SafeStepOrchestrator
-from .prototype import DEFAULT_PITCH_SCENARIO, PrototypeResult, PrototypeTick, run_pitch_scenario
 from .runtime import SafeStepRuntime
 
 __all__ = [
@@ -16,8 +15,4 @@ __all__ = [
     "TrafficMetrics",
     "SafeStepOrchestrator",
     "SafeStepRuntime",
-    "PrototypeTick",
-    "PrototypeResult",
-    "DEFAULT_PITCH_SCENARIO",
-    "run_pitch_scenario",
 ]
