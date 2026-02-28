@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Mapping, Sequence
 
+from .adapters import YOLOObjectAdapter
 from .decision import DecisionOutcome
 from .orchestrator import SafeStepOrchestrator, TickInput
 from .perception import PerceptionEngine
+from .tracking import Detection
 
 
 @dataclass
@@ -14,11 +17,21 @@ class RuntimeOutput:
 
 
 class SafeStepRuntime:
-    """End-to-end runtime loop glue for camera perception and control logic."""
+    """End-to-end runtime loop glue for perception and control logic."""
 
     def __init__(self, perception: PerceptionEngine, orchestrator: SafeStepOrchestrator) -> None:
         self.perception = perception
         self.orchestrator = orchestrator
+
+    def _to_tick_input(self, ped_avg_wait_s: float, waiting: int, vehicles: int, occupied: bool, emergency: bool) -> TickInput:
+        return TickInput(
+            ped_wait_count=waiting,
+            ped_avg_wait_s=ped_avg_wait_s,
+            traffic_flow_rate=float(vehicles * 10),
+            traffic_queue_length=vehicles,
+            crosswalk_occupied=occupied,
+            emergency_vehicle_detected=emergency,
+        )
 
     def process_frame(self, frame: object, ped_avg_wait_s: float = 0.0) -> RuntimeOutput:
         try:
@@ -31,13 +44,38 @@ class SafeStepRuntime:
             )
 
         outcome = self.orchestrator.process_tick(
-            TickInput(
-                ped_wait_count=perception.waiting_pedestrians,
+            self._to_tick_input(
                 ped_avg_wait_s=ped_avg_wait_s,
-                traffic_flow_rate=float(perception.vehicles_in_approach * 10),
-                traffic_queue_length=perception.vehicles_in_approach,
-                crosswalk_occupied=perception.crosswalk_occupied,
-                emergency_vehicle_detected=perception.emergency_vehicle_detected,
+                waiting=perception.waiting_pedestrians,
+                vehicles=perception.vehicles_in_approach,
+                occupied=perception.crosswalk_occupied,
+                emergency=perception.emergency_vehicle_detected,
             )
         )
         return RuntimeOutput(outcome=outcome, fallback_timer_mode=False)
+
+    def process_detections(
+        self,
+        detections: Sequence[Detection],
+        ped_avg_wait_s: float = 0.0,
+    ) -> RuntimeOutput:
+        perception = self.perception.process_detections(detections)
+        outcome = self.orchestrator.process_tick(
+            self._to_tick_input(
+                ped_avg_wait_s=ped_avg_wait_s,
+                waiting=perception.waiting_pedestrians,
+                vehicles=perception.vehicles_in_approach,
+                occupied=perception.crosswalk_occupied,
+                emergency=perception.emergency_vehicle_detected,
+            )
+        )
+        return RuntimeOutput(outcome=outcome, fallback_timer_mode=False)
+
+    def process_yolo_result(
+        self,
+        yolo_result: Any,
+        names: Mapping[int, str] | Sequence[str] | None = None,
+        ped_avg_wait_s: float = 0.0,
+    ) -> RuntimeOutput:
+        detections = YOLOObjectAdapter.from_result(yolo_result, names=names)
+        return self.process_detections(detections=detections, ped_avg_wait_s=ped_avg_wait_s)
