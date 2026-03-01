@@ -48,3 +48,24 @@ print(out.outcome)
 - OpenCV and Ultralytics are optional runtime dependencies and are not required for unit tests.
 - `SimpleTracker` is intentionally lightweight; production deployments should replace it with ByteTrack or DeepSORT.
 - Accident-specific vehicle kinematics logic has been intentionally removed; pedestrian-collision dispatch is the supported incident path.
+
+## Admin deployment configuration (Streamlit)
+
+Admins can configure live deployments directly in the dashboard:
+
+- Log in as admin (defaults controlled by env vars):
+  - `SAFESTEP_ADMIN_USER`
+  - `SAFESTEP_ADMIN_PASSWORD`
+- Open **Deployed Signals** and add:
+  - Signal ID
+  - Location
+  - Controller endpoint
+  - Emergency contact number
+  - Camera IDs
+- Config is persisted in `data/deployments.json` and camera IDs are shown back under **Connected Cameras**.
+
+Run dashboard:
+
+```bash
+PYTHONPATH=src streamlit run app.py
+```
