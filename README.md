@@ -69,3 +69,14 @@ Run dashboard:
 ```bash
 PYTHONPATH=src streamlit run app.py
 ```
+
+
+## Abstract controller + state machine (software-only)
+
+SafeStep now includes a protocol-agnostic control layer so hardware specifics can be plugged in later:
+
+- `SignalState`: `VEHICLE_GREEN`, `PEDESTRIAN_GREEN`, `ALL_RED`
+- `SignalStateMachine`: min/max pedestrian timing, dynamic pedestrian phase duration, and occupancy-based release
+- `SignalControllerAdapter.set_state(...)`: mock ACK/NACK-style command response (`ACK` / `NACK`)
+
+This keeps current logic simulation-ready while preserving a clean integration point for real controller adapters in the future.

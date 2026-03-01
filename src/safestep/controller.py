@@ -1,9 +1,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
+from enum import Enum
+from typing import List, Protocol
 
 from .models import CrossingState, Mode, PedSignal
+from .state_machine import SignalState
+
+
+class CommandStatus(str, Enum):
+    ACK = "ACK"
+    NACK = "NACK"
+
+
+@dataclass
+class CommandResult:
+    status: CommandStatus
+    command: str
+    message: str = ""
+
+
+class SignalController(Protocol):
+    def set_state(self, state: SignalState) -> CommandResult:
+        ...
 
 
 @dataclass
@@ -12,11 +31,23 @@ class CommandLog:
 
 
 class SignalControllerAdapter:
-    """In-memory adapter that represents cabinet integration points."""
+    """Mock controller adapter with abstract state API and ACK/NACK simulation."""
 
     def __init__(self) -> None:
         self.state = CrossingState()
         self.log = CommandLog()
+
+    def set_state(self, state: SignalState) -> CommandResult:
+        if state == SignalState.PEDESTRIAN_GREEN:
+            self.request_ped_phase()
+            return CommandResult(status=CommandStatus.ACK, command="set_state:pedestrian_green")
+        if state == SignalState.ALL_RED:
+            self.force_all_red()
+            return CommandResult(status=CommandStatus.ACK, command="set_state:all_red")
+        if state == SignalState.VEHICLE_GREEN:
+            self.resume_normal_operation()
+            return CommandResult(status=CommandStatus.ACK, command="set_state:vehicle_green")
+        return CommandResult(status=CommandStatus.NACK, command="set_state", message="unknown state")
 
     def request_ped_phase(self) -> None:
         self.log.commands.append("request_ped_phase")

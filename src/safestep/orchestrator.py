@@ -7,6 +7,7 @@ from .decision import DecisionEngine, DecisionInput, DecisionOutcome
 from .dispatch import DispatchService
 from .evidence import EvidenceService
 from .models import EventRecord, PedSignal
+from .state_machine import SignalState, SignalStateMachine
 from .supervisor import SafetySupervisor
 
 
@@ -26,6 +27,7 @@ class TickInput:
     pedestrian_collision_detected: bool = False
     collision_location: str | None = None
     collision_plate: str | None = None
+    dt_s: float = 1.0
 
 
 class SafeStepOrchestrator:
@@ -36,12 +38,14 @@ class SafeStepOrchestrator:
         evidence: EvidenceService | None = None,
         supervisor: SafetySupervisor | None = None,
         dispatch: DispatchService | None = None,
+        state_machine: SignalStateMachine | None = None,
     ) -> None:
         self.decision_engine = decision_engine or DecisionEngine()
         self.controller = controller or SignalControllerAdapter()
         self.evidence = evidence or EvidenceService()
         self.supervisor = supervisor or SafetySupervisor()
         self.dispatch = dispatch or DispatchService()
+        self.state_machine = state_machine or SignalStateMachine()
 
     def _log_violation(self, plate: str | None, source: str) -> None:
         encrypted = self.evidence.encrypt_identifier(plate or "UNKNOWN")
@@ -74,12 +78,17 @@ class SafeStepOrchestrator:
             self.controller.enter_failsafe()
             return DecisionOutcome.HOLD_VEHICLE_GREEN
 
+        current_state = self.state_machine.tick(signal.dt_s, signal.crosswalk_occupied)
+        if current_state == SignalState.VEHICLE_GREEN and self.controller.state.ped_signal == PedSignal.WALK:
+            self.controller.set_state(SignalState.VEHICLE_GREEN)
+
         if signal.pedestrian_collision_detected:
             self._handle_pedestrian_collision(
                 location=signal.collision_location,
                 plate=signal.collision_plate,
             )
-            self.controller.force_all_red()
+            self.state_machine.force_all_red()
+            self.controller.set_state(SignalState.ALL_RED)
             return DecisionOutcome.FORCE_ALL_RED
 
         decision = self.decision_engine.decide(
@@ -97,9 +106,12 @@ class SafeStepOrchestrator:
         )
 
         if decision == DecisionOutcome.REQUEST_PED_PHASE:
-            self.controller.request_ped_phase()
+            ped_pressure = signal.ped_wait_count * 5 + signal.ped_avg_wait_s
+            self.state_machine.start_pedestrian_phase(ped_pressure=ped_pressure)
+            self.controller.set_state(SignalState.PEDESTRIAN_GREEN)
         elif decision == DecisionOutcome.FORCE_ALL_RED:
-            self.controller.force_all_red()
+            self.state_machine.force_all_red()
+            self.controller.set_state(SignalState.ALL_RED)
         elif decision == DecisionOutcome.SUSPEND_CROSSING:
             self.controller.suspend_ped_service()
 
@@ -111,7 +123,8 @@ class SafeStepOrchestrator:
             and self.controller.state.ped_signal == PedSignal.WALK
         ):
             self._log_violation(signal.violation_plate, source="auto_crosswalk_intrusion")
-            self.controller.force_all_red()
+            self.state_machine.force_all_red()
+            self.controller.set_state(SignalState.ALL_RED)
             return DecisionOutcome.FORCE_ALL_RED
 
         return decision
