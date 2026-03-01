@@ -2,6 +2,7 @@
 
 from .adapters import YOLOObjectAdapter
 from .decision import DecisionEngine, DecisionInput, DecisionOutcome
+from .dispatch import DispatchConfig, DispatchRecord, DispatchService
 from .models import CrossingState, EventRecord, PedMetrics, TrafficMetrics
 from .orchestrator import SafeStepOrchestrator
 from .perception import PerceptionEngine, Zone
@@ -16,6 +17,9 @@ __all__ = [
     "EventRecord",
     "PedMetrics",
     "TrafficMetrics",
+    "DispatchConfig",
+    "DispatchRecord",
+    "DispatchService",
     "SafeStepOrchestrator",
     "PerceptionEngine",
     "Zone",

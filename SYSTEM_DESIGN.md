@@ -9,7 +9,7 @@ SafeStep coordinates:
 - Computer vision (CV) from roadside cameras.
 - Pedestrian signal controllers and traffic phases.
 - Enforcement/event logging (plate/body capture, incident records).
-- Emergency handling (vehicle priority and accident reporting).
+- Emergency handling (vehicle priority and pedestrian-collision reporting).
 
 The system must always prioritize safety, then balance pedestrian service and traffic throughput.
 
@@ -87,11 +87,11 @@ The system must always prioritize safety, then balance pedestrian service and tr
 - If vehicle enters protected crosswalk during active pedestrian right-of-way:
   - classify as violation event.
 
-### 3.8 Plate/body capture, escalation, accident dispatch
+### 3.8 Plate/body capture, escalation, pedestrian-collision dispatch
 - Capture plate ROI + vehicle full-body frame.
 - Encrypt sensitive records at rest.
 - Escalate according to policy (repeat rate, severity).
-- Accident detection triggers emergency call workflow.
+- Pedestrian-collision detection triggers emergency call workflow.
 
 ### 3.9 Emergency vehicle handling
 - Detect siren/emergency light patterns/vehicle class.
@@ -124,7 +124,7 @@ The system must always prioritize safety, then balance pedestrian service and tr
 2. **Emergency preemption**
    - Emergency vehicle handling policy.
 
-3. **Accident/incident handling**
+3. **Collision/incident handling**
    - Freeze into safe state + notify emergency services.
 
 4. **Normal optimization layer**

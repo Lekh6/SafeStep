@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .controller import SignalControllerAdapter
 from .decision import DecisionEngine, DecisionInput, DecisionOutcome
+from .dispatch import DispatchService
 from .evidence import EvidenceService
 from .models import EventRecord, PedSignal
 from .supervisor import SafetySupervisor
@@ -22,6 +23,9 @@ class TickInput:
     traffic_density: float = 0.0
     vehicles_in_crosswalk: int = 0
     violation_plate: str | None = None
+    pedestrian_collision_detected: bool = False
+    collision_location: str | None = None
+    collision_plate: str | None = None
 
 
 class SafeStepOrchestrator:
@@ -31,11 +35,13 @@ class SafeStepOrchestrator:
         controller: SignalControllerAdapter | None = None,
         evidence: EvidenceService | None = None,
         supervisor: SafetySupervisor | None = None,
+        dispatch: DispatchService | None = None,
     ) -> None:
         self.decision_engine = decision_engine or DecisionEngine()
         self.controller = controller or SignalControllerAdapter()
         self.evidence = evidence or EvidenceService()
         self.supervisor = supervisor or SafetySupervisor()
+        self.dispatch = dispatch or DispatchService()
 
     def _log_violation(self, plate: str | None, source: str) -> None:
         encrypted = self.evidence.encrypt_identifier(plate or "UNKNOWN")
@@ -48,10 +54,33 @@ class SafeStepOrchestrator:
             )
         )
 
+    def _handle_pedestrian_collision(self, location: str | None, plate: str | None) -> None:
+        encrypted = self.evidence.encrypt_identifier(plate) if plate else None
+        self.evidence.log_event(
+            EventRecord(
+                event_type="pedestrian_collision",
+                confidence=0.9,
+                encrypted_identifier=encrypted,
+                details={"location": location or self.dispatch.config.default_location},
+            )
+        )
+        self.dispatch.dispatch_pedestrian_collision(
+            location=location,
+            encrypted_plate=encrypted,
+        )
+
     def process_tick(self, signal: TickInput) -> DecisionOutcome:
         if self.supervisor.should_enter_failsafe():
             self.controller.enter_failsafe()
             return DecisionOutcome.HOLD_VEHICLE_GREEN
+
+        if signal.pedestrian_collision_detected:
+            self._handle_pedestrian_collision(
+                location=signal.collision_location,
+                plate=signal.collision_plate,
+            )
+            self.controller.force_all_red()
+            return DecisionOutcome.FORCE_ALL_RED
 
         decision = self.decision_engine.decide(
             DecisionInput(

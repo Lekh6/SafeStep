@@ -10,7 +10,7 @@ SafeStep is a Python-first orchestration core for camera-driven pedestrian cross
 - **Tracking**: pluggable tracker interface with lightweight IoU tracker scaffold (`tracking.py`) ready to swap for ByteTrack/DeepSORT
 - **Signal logic**: state-machine style orchestration (`orchestrator.py`, `controller.py`)
 - **Safety logic**: unauthorized step-in all-red, emergency-vehicle all-red, automatic crosswalk-intrusion violation logging
-- **Accident heuristic**: overlap + sudden-stop detection (`accident.py`)
+- **Collision handling**: pedestrian-collision dispatch flow with admin-configurable emergency contact (`dispatch.py`)
 - **Encryption**: AES-GCM plate encryption via `cryptography` when available (`security.py`, `evidence.py`)
 - **Fail-safe**: runtime fallback to timer/normal controller mode if frame processing fails (`runtime.py`)
 
@@ -47,3 +47,4 @@ print(out.outcome)
 
 - OpenCV and Ultralytics are optional runtime dependencies and are not required for unit tests.
 - `SimpleTracker` is intentionally lightweight; production deployments should replace it with ByteTrack or DeepSORT.
+- Accident-specific vehicle kinematics logic has been intentionally removed; pedestrian-collision dispatch is the supported incident path.
