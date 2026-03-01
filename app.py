@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import streamlit as st
 
+from safestep.admin_auth import authenticate_admin
 from safestep.deployments import DeploymentRegistry, SignalDeployment
 
 
@@ -21,10 +22,14 @@ if "authed" not in st.session_state:
 
 if not st.session_state.authed:
     st.subheader("Admin Login")
+    st.caption(
+        "Use the configured credential values (defaults: username `admin`, password `admin123`). "
+        "If needed, entering env var keys such as `SAFESTEP_ADMIN_USER` will resolve to their values."
+    )
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        if username == admin_user and password == admin_pass:
+        if authenticate_admin(username, password, admin_user, admin_pass):
             st.session_state.authed = True
             st.success("Logged in")
             st.rerun()

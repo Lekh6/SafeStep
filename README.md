@@ -69,9 +69,11 @@ print(out.outcome)
 
 Admins can configure live deployments directly in the dashboard:
 
-- Log in as admin (defaults controlled by env vars):
+- Log in as admin using credential **values** (defaults: username `admin`, password `admin123`).
+- You can set custom values via env vars:
   - `SAFESTEP_ADMIN_USER`
   - `SAFESTEP_ADMIN_PASSWORD`
+- For convenience, the login form also accepts those env var key names and resolves them to their configured values.
 - Open **Deployed Signals** and add:
   - Signal ID
   - Location
