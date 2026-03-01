@@ -16,7 +16,23 @@ SafeStep is a Python-first orchestration core for camera-driven pedestrian cross
 
 ## Quick start
 
+### Unix/macOS (bash/zsh)
+
 ```bash
+python -m pip install -U pytest
+pytest -q
+```
+
+### Windows (PowerShell)
+
+```powershell
+python -m pip install -U pytest
+pytest -q
+```
+
+### Windows (cmd.exe)
+
+```bat
 python -m pip install -U pytest
 pytest -q
 ```
@@ -66,10 +82,25 @@ Admins can configure live deployments directly in the dashboard:
 
 Run dashboard:
 
+### Unix/macOS (bash/zsh)
+
 ```bash
 PYTHONPATH=src streamlit run app.py
 ```
 
+### Windows (PowerShell)
+
+```powershell
+$env:PYTHONPATH = "src"
+streamlit run app.py
+```
+
+### Windows (cmd.exe)
+
+```bat
+set PYTHONPATH=src
+streamlit run app.py
+```
 
 ## Abstract controller + state machine (software-only)
 
