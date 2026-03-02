@@ -15,7 +15,7 @@ if str(SRC_DIR) not in sys.path:
 from safestep.admin_auth import authenticate_admin
 from safestep.deployments import DeploymentRegistry, SignalDeployment
 from safestep.models import PedSignal
-from safestep.simulation import SCENARIOS, new_simulation, step_simulation
+from safestep.simulation import SCENARIOS, new_simulation, seek_simulation, step_simulation
 from safestep.state_machine import SignalState
 
 
@@ -27,42 +27,53 @@ st.title("SafeStep")
 
 def render_simulation_canvas(sim_state, orchestrator) -> str:
     phase = orchestrator.state_machine.state
-    vehicle_green = phase == SignalState.VEHICLE_GREEN
     ped_walk = orchestrator.controller.state.ped_signal == PedSignal.WALK
 
-    left_light = "#31c56b" if ped_walk else "#e14c4c"
-    right_light = "#31c56b" if ped_walk else "#e14c4c"
-    vehicle_color = "#2bbf6a" if vehicle_green else "#d64545"
+    remaining_ped_s = 0.0
+    if phase == SignalState.PEDESTRIAN_GREEN:
+        snap = orchestrator.state_machine.snapshot()
+        remaining_ped_s = max(0.0, snap.required_pedestrian_s - snap.elapsed_s)
+
+    if ped_walk and remaining_ped_s <= 5.0:
+        ped_light = "#ffa726"
+    elif ped_walk:
+        ped_light = "#31c56b"
+    else:
+        ped_light = "#e14c4c"
+
+    vehicle_color = "#2bbf6a" if phase == SignalState.VEHICLE_GREEN else "#d64545"
 
     cars_svg: list[str] = []
     for x in sim_state.cars_eastbound:
-        cars_svg.append(f'<rect x="{x:.1f}" y="138" width="38" height="18" rx="3" fill="#2196f3"/>')
+        cars_svg.append(f'<rect x="{x:.1f}" y="138" width="36" height="18" rx="4" fill="#2196f3" stroke="#0d47a1"/>')
     for x in sim_state.cars_westbound:
-        cars_svg.append(f'<rect x="{x - 38:.1f}" y="205" width="38" height="18" rx="3" fill="#ff9800"/>')
+        cars_svg.append(f'<rect x="{x - 36:.1f}" y="205" width="36" height="18" rx="4" fill="#ff9800" stroke="#e65100"/>')
 
-    svg = f"""
+    return f"""
+    <div style="width:100%; border:1px solid #d0d0d0; border-radius:8px; overflow:hidden;">
     <svg viewBox="0 0 900 360" width="100%" height="360" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="900" height="360" fill="#9ccc65"/>
+      <rect x="0" y="0" width="900" height="360" fill="#90a978"/>
+      <rect x="0" y="40" width="150" height="280" fill="#cfd8dc"/>
+      <rect x="750" y="40" width="150" height="280" fill="#cfd8dc"/>
       <rect x="150" y="95" width="600" height="170" fill="#424242"/>
       <line x1="150" y1="180" x2="750" y2="180" stroke="#f9f17a" stroke-width="3" stroke-dasharray="16 10"/>
-      <rect x="420" y="95" width="60" height="170" fill="#fafafa" opacity="0.15"/>
       <g fill="#fefefe">
-        <rect x="427" y="100" width="8" height="160"/>
-        <rect x="442" y="100" width="8" height="160"/>
-        <rect x="457" y="100" width="8" height="160"/>
+        <rect x="430" y="100" width="10" height="160"/>
+        <rect x="448" y="100" width="10" height="160"/>
+        <rect x="466" y="100" width="10" height="160"/>
       </g>
-      <rect x="150" y="95" width="8" height="170" fill="{vehicle_color}"/>
-      <rect x="742" y="95" width="8" height="170" fill="{vehicle_color}"/>
-      <circle cx="392" cy="82" r="14" fill="{left_light}"/>
-      <circle cx="508" cy="82" r="14" fill="{right_light}"/>
-      <text x="332" y="86" font-size="12" fill="#ffffff">Ped Light</text>
-      <text x="514" y="86" font-size="12" fill="#ffffff">Ped Light</text>
-      <text x="26" y="60" font-size="16" fill="#1f3d1f">Sidewalk</text>
-      <text x="784" y="60" font-size="16" fill="#1f3d1f">Sidewalk</text>
+      <rect x="150" y="95" width="10" height="170" fill="{vehicle_color}"/>
+      <rect x="740" y="95" width="10" height="170" fill="{vehicle_color}"/>
+      <circle cx="392" cy="82" r="14" fill="{ped_light}" stroke="#263238"/>
+      <circle cx="508" cy="278" r="14" fill="{ped_light}" stroke="#263238"/>
+      <text x="312" y="86" font-size="12" fill="#ffffff">Ped Light (North)</text>
+      <text x="515" y="282" font-size="12" fill="#ffffff">Ped Light (South)</text>
+      <text x="40" y="60" font-size="16" fill="#37474f">Sidewalk</text>
+      <text x="790" y="60" font-size="16" fill="#37474f">Sidewalk</text>
       {''.join(cars_svg)}
     </svg>
+    </div>
     """
-    return svg
 
 
 def render_showcase() -> None:
@@ -83,19 +94,39 @@ def render_showcase() -> None:
 
     st.info(SCENARIOS[scenario_key].description)
 
-    col_a, col_b, col_c = st.columns([1, 1, 1])
-    with col_a:
+    def jump_time(delta: int) -> None:
+        current_tick = st.session_state.sim_state.tick
+        target = max(0, current_tick + delta)
+        orchestrator2, sim_state2 = seek_simulation(scenario_key, target)
+        st.session_state.sim_orchestrator = orchestrator2
+        st.session_state.sim_state = sim_state2
+
+    controls_row1 = st.columns(3)
+    with controls_row1[0]:
         if st.button("Advance 1 second", use_container_width=True):
-            st.session_state.sim_state = step_simulation(st.session_state.sim_orchestrator, st.session_state.sim_state)
-    with col_b:
+            jump_time(1)
+    with controls_row1[1]:
+        if st.button("Advance 5 seconds", use_container_width=True):
+            jump_time(5)
+    with controls_row1[2]:
         if st.button("Advance 10 seconds", use_container_width=True):
-            for _ in range(10):
-                st.session_state.sim_state = step_simulation(st.session_state.sim_orchestrator, st.session_state.sim_state)
-    with col_c:
-        if st.button("Reset scenario", use_container_width=True):
-            orchestrator, sim_state = new_simulation(scenario_key)
-            st.session_state.sim_orchestrator = orchestrator
-            st.session_state.sim_state = sim_state
+            jump_time(10)
+
+    controls_row2 = st.columns(3)
+    with controls_row2[0]:
+        if st.button("Reverse 1 second", use_container_width=True):
+            jump_time(-1)
+    with controls_row2[1]:
+        if st.button("Reverse 5 seconds", use_container_width=True):
+            jump_time(-5)
+    with controls_row2[2]:
+        if st.button("Reverse 10 seconds", use_container_width=True):
+            jump_time(-10)
+
+    if st.button("Reset scenario", use_container_width=True):
+        orchestrator, sim_state = new_simulation(scenario_key)
+        st.session_state.sim_orchestrator = orchestrator
+        st.session_state.sim_state = sim_state
 
     sim_state = st.session_state.sim_state
     orchestrator = st.session_state.sim_orchestrator
@@ -116,8 +147,10 @@ def render_showcase() -> None:
         {
             "left_sidewalk_waiting": round(sim_state.ped_left_waiting, 2),
             "right_sidewalk_waiting": round(sim_state.ped_right_waiting, 2),
-            "cars_lane_eastbound": len(sim_state.cars_eastbound),
-            "cars_lane_westbound": len(sim_state.cars_westbound),
+            "cars_lane_eastbound_visible": len(sim_state.cars_eastbound),
+            "cars_lane_westbound_visible": len(sim_state.cars_westbound),
+            "queue_eastbound": sim_state.queue_eastbound,
+            "queue_westbound": sim_state.queue_westbound,
             "crosswalk_occupied": sim_state.crossing_people > 0,
             "model_decision": sim_state.last_outcome.value,
         }
